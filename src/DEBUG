@@ -1,0 +1,3 @@
+To debug intercommunication between monitor and workers, by using socat(1):
+
+> echo DIAGNOSTICS | socat unix-connect:/tmp/nagiostrapd357 -

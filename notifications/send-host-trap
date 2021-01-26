@@ -1,0 +1,54 @@
+#!/bin/bash
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+
+PROGNAME=`basename $0`
+
+print_help() {
+	echo
+	echo "Utilizzo: $PROGNAME"
+	echo
+	echo "	Notifica via trap SNMP lo stato di un host"
+	echo
+	echo "	$PROGNAME <target@community> <hostname> <host_status> <check_output> [-t|-i]"
+	echo
+	echo "  -t    invia una trap (default)"
+	echo "  -i    invia una trap con richiesta di conferma"
+	echo
+	exit 0
+}
+
+if [ $# -lt 4 ]
+then 
+	print_help
+	exit 0
+fi
+
+
+target_community="$1"
+hostname="$2"
+status="$3"
+check_output="$4"
+mode="$5"
+
+target=`awk -F'@' '{print $1}' <<<$target_community`
+community=`awk -F'@' '{print $2}' <<<$target_community`
+
+if [ -z "$community" ]
+then
+	community=public
+fi
+
+if [ "$5" = '-i' ]
+then
+	invoke='inform'
+else
+	invoke='trap'
+fi
+
+# workaround for a well-known bug in snmp tools
+# see http://sourceforge.net/tracker/index.php?func=detail&aid=1588455&group_id=12694&atid=112694
+export SNMP_PERSISTENT_DIR=/tmp
+
+# send trap
+/usr/bin/snmp$invoke -v 2c -c $community $target '' NAGIOS-NOTIFY-MIB::sHostEvent sHostname s "$hostname" sHostStateID i $status sHostOutput s "$check_output"

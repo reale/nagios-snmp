@@ -1,0 +1,26 @@
+#
+#     N a g i o s   S N M P   T r a p   D a e m o n 
+#
+##############################################################################
+##############################################################################
+##############################################################################
+
+#
+#     This file controls the activity of nagiostrapd
+#
+##############################################################################
+##############################################################################
+
+
+# nagiostrapd control (yes means start daemon)
+DO_RUN=yes
+
+# nagiostrapd options
+PROGOPTS=
+
+# run as user... run as group...
+RUN_AS_USER=root
+RUN_AS_GROUP=root
+
+# set DEBUG=.debug to enable debug
+DEBUG=

@@ -1,0 +1,39 @@
+/var/log/nagiostrapd.debug {
+	size 200M
+	daily
+	rotate 2
+	copytruncate
+	compress
+	missingok
+	notifempty
+}
+
+/var/log/nagiostrapd.error {
+	size 10M
+	monthly
+	rotate 5
+	copytruncate
+	compress
+	missingok
+	notifempty
+}
+
+/var/log/nagiostrapd.traps {
+	size 500M
+	daily
+	rotate 3
+	copytruncate
+	nocompress
+	missingok
+	notifempty
+}
+
+/var/log/nagiostrapd.monitor {
+	size 50M
+	daily
+	rotate 2
+	copytruncate
+	compress
+	missingok
+	notifempty
+}

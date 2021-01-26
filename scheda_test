@@ -1,0 +1,25 @@
+Test trap da svolgere
+.....................
+
+21-MAY-2012
+
+
+1.  Test invio
+
+1.1.   Associare ad un host e ad un servizio le notifiche via trap SNMP e verificare se le notifiche vengono inviate.
+
+2.  Test ricezione
+
+2.1.   Predisporre una sorgente di trap, scrivere un plugin ed associarlo ad un host e a un servizio. Verificare l'effettiva ricezione delle trap e il corrispondente cambio stato.
+
+2.2.   Verificare che in contemporanea presenza di un check attivo e di uno di tipo trap non si riscontrino anomalie. In particolare, il parametro "freshness threshold" dev'essere rispettato.
+
+2.3.   Associare lo stesso check di tipo trap a più host / servizi e fare in modo che l'host venga associato a qualche parametro interno della trap e non all'ip del mittente (il flag "Usa ip mittente" nella maschera dei check dev'essere disattivo). A questo scopo si può utilizzare, come sorgente trap, un secondo Nagios abilitato all'invio delle notifiche snmp.
+
+2.4.   Verificare il corretto funzionamento del log delle trap.
+
+3.  Altri test
+
+3.1.   Verificare la corretta esecuzione dei grafici dei check trap, con particolare riguardo al parametro di step (grafici "con buchi").
+
+3.2.   Verificare che le maschere di inserimento e modifica dei comandi check funzionino in ogni loro parte, specialmente per quanto riguarda l'esecuzione estemporanea dei check (bottone "Esegui").

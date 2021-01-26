@@ -1,0 +1,74 @@
+#!/bin/bash
+
+#
+#     N a g i o s   S N M P   T r a p   D a e m o n 
+#
+##############################################################################
+##############################################################################
+##############################################################################
+
+#
+#     /etc/init.d script --- start and stop all SNMP-related services
+#
+##############################################################################
+##############################################################################
+
+### BEGIN INIT INFO
+# Provides:           /usr/sbin/snmp-main
+# Required-Start:     $network $remote_fs $syslog
+# Required-Stop:      $network $remote_fs $syslog
+# Default-Start:      2 3 4 5
+# Default-Stop:       0 1 6
+# Short-Description:  Nagios3 Trap Daemon --- global
+# Description:        Nagios3 Trap Daemon --- global
+### END INIT INFO
+
+
+PROGNAME=snmp-main
+
+
+
+function do_start()
+{
+	service snmpd start
+	service nagiostrapd start
+}
+
+function do_stop()
+{
+	service nagiostrapd stop
+	service snmpd stop
+}
+
+function do_restart()
+{
+	do_stop
+	do_start
+}
+
+function do_getstatus()
+{
+	service snmpd status
+	service nagiostrapd status
+}
+
+
+case "$1" in
+	start)
+		do_start
+		;;
+	stop)
+		do_stop
+		;;
+	restart)
+		do_restart
+		;;
+	status)
+		do_getstatus
+		;;
+	*)
+		echo "Usage: /etc/init.d/$PROGNAME {start|stop|restart|status}"
+		exit 1
+esac
+
+exit 0

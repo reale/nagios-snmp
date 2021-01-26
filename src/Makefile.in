@@ -1,0 +1,69 @@
+#
+#     N a g i o s   S N M P   T r a p   D a e m o n 
+#
+##############################################################################
+##############################################################################
+##############################################################################
+
+#
+#     Makefile.in (main body)
+#
+##############################################################################
+##############################################################################
+
+
+
+#AWK=/usr/bin/awk -f
+LDFLAGS=-lpthread -lpcre `mysql_config --libs` `pkg-config --libs glib-2.0`
+DIR=.
+
+_DEPS = nagiostrapd.h Makefile generate-key.sh
+DEPS = $(patsubst %,$(DIR)/%,$(_DEPS))
+
+_OBJS = channel.o command.o config.o daemon.o db.o diagnostics.o diagnostics2.o dictionary.o exec.o execlist.o iniparser.o interface.o log.o main.o monitor.o pidfile.o query.o regex.o socket.o stack.o standalone.o startup.o threadpool.o trap.o traplog.o util.o worker.o
+OBJS = $(patsubst %,$(DIR)/%,$(_OBJS))
+
+all: $(DIR)/nagiostrapd
+
+$(DIR)/%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+#$(DIR)/db.o: $(DIR)/db.c $(DIR)/queries.h $(DEPS)
+$(DIR)/db.o: $(DIR)/db.c $(DEPS)
+	$(CC) -c -o $@ $< `mysql_config --cflags` `pkg-config --cflags glib-2.0` $(CFLAGS)
+
+$(DIR)/config.o: $(DIR)/config.c $(DIR)/dictionary.h $(DIR)/iniparser.h $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(DIR)/dictionary.o: $(DIR)/dictionary.c $(DIR)/dictionary.h $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(DIR)/iniparser.o: $(DIR)/iniparser.c $(DIR)/dictionary.h $(DIR)/iniparser.h $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(DIR)/interface.o: $(DIR)/interface.c $(DIR)/version.h $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(DIR)/log.o: $(DIR)/log.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(DIR)/threadpool.o: $(DIR)/threadpool.c $(DIR)/threadpool.h $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+#$(DIR)/queries.h: $(DIR)/sql2define.awk $(DIR)/queries.sql $(DEPS)
+#	$(AWK) $(DIR)/sql2define.awk < $(DIR)/queries.sql > $(DIR)/queries.h
+
+$(DIR)/version.h: $(DIR)/revision.h
+
+$(DIR)/nagiostrapd: $(OBJS)
+	$(DIR)/generate-key.sh > $(DIR)/key.c
+	$(CC) -c -o key.o key.c $(CFLAGS)
+	$(CC) -o $@ $^ key.o $(LDFLAGS)
+
+.PHONY: clean
+
+clean:
+	rm -f $(DIR)/*.o $(DIR)/nagiostrapd $(DIR)/nagiostrapd.debug $(DIR)/queries.h $(DIR)/key.c Makefile tags
+
+tags:
+	ctags *.c *.h

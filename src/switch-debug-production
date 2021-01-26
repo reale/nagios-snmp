@@ -1,0 +1,31 @@
+#!/bin/bash
+
+
+#
+#     N a g i o s   S N M P   T r a p   D a e m o n 
+#
+##############################################################################
+##############################################################################
+##############################################################################
+
+#
+#     Switch between DEBUG and PRODUCTION Makefile's
+#
+##############################################################################
+##############################################################################
+
+
+
+if [ "$1" = '--debug' ]
+then
+	cat Makefile.debug Makefile.in > Makefile
+elif [ "$1" = '--production' ]
+then
+	cat Makefile.production Makefile.in > Makefile
+elif [ "$1" = '--clean' ]
+then
+	rm -f Makefile nagiostrapd{,.debug}
+else
+	echo "You must specify --debug or --production or --clean"
+	exit 1
+fi

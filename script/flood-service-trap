@@ -1,0 +1,22 @@
+#!/bin/bash
+
+RANDOM=$$
+
+if [ $# -ne 5 ]; then
+	echo "usage: $0 <target> <community> <hostname> <svc_desc> <delay>"
+	exit
+fi
+
+target="$1"
+community="$2"
+hostname="$3"
+svc_desc="$4"
+delay="$5"
+
+while [ 1 ]
+do
+	status=$((RANDOM%3))
+	output=`fortune -o | tr '\n' ' '`
+	/usr/local/nagios/libexec/notifiche/send-service-trap $target@$community $hostname $svc_desc $status "$output" 1>&2 2>/dev/null &
+	sleep $delay
+done

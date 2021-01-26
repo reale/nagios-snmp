@@ -1,0 +1,20 @@
+EVENTUALMENTE
+
+* supporto per trap v1
+
+* grafici
+
+* ottimizzazione trap nagios-to-nagios
+
+FATTE
+
+* debug multithreading
+
+* terminazione pulita (segnali etc.)
+
+* log errori
+
+* file configurazione
+
+* log trap
+

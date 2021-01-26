@@ -1,0 +1,6 @@
+Makefile
+ignore
+key.c
+queries.h
+nagiostrapd
+version.h

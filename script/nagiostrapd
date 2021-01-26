@@ -1,0 +1,288 @@
+#!/bin/bash
+
+#
+#     N a g i o s   S N M P   T r a p   D a e m o n 
+#
+##############################################################################
+##############################################################################
+##############################################################################
+
+#
+#     /etc/init.d script
+#
+##############################################################################
+##############################################################################
+
+### BEGIN INIT INFO
+# Provides:           /usr/sbin/nagiostrapd
+# Required-Start:     $network $remote_fs $syslog
+# Required-Stop:      $network $remote_fs $syslog
+# Default-Start:      2 3 4 5
+# Default-Stop:       0 1 6
+# Short-Description:  Nagios3 Trap Daemon
+# Description:        Nagios3 Trap Daemon
+### END INIT INFO
+
+source /lib/lsb/init-functions
+
+export PATH=/sbin:/usr/sbin:/bin:/usr/bin
+
+PROGNAME=nagiostrapd
+PROGPATH=/usr/sbin/$PROGNAME
+PROGDESC='Nagios3 Trap Daemon'
+CONF_FILE=/etc/$PROGNAME/$PROGNAME.ini
+
+DO_RUN=yes
+PROGOPTS=
+
+# set DEBUG=.debug to enable debug
+DEBUG=
+
+# HARAKIRI_TIMEOUT=60
+
+RUN_AS_USER=root
+RUN_AS_GROUP=root
+
+LOCK_FILE=/tmp/$PROGNAME.operation_in_progress
+
+# the executable & its config file must exist
+test -x $PROGPATH -a -f $CONF_FILE || exit 0
+
+# read config
+source <($PROGPATH --dump-config)
+
+if [ -z "$debug_log" ]; then
+	debug_log=$error_log
+fi
+
+# read default file
+[ -r /etc/default/$PROGNAME ] && . /etc/default/$PROGNAME
+
+# maybe we are supposed to use the debug version...
+PROGPATH_ORIG=$PROGPATH
+PROGPATH=$PROGPATH$DEBUG
+
+
+# locking
+if [ "$2" = '--ignore-lock' ]; then
+	ignore_lock=yes
+fi
+
+
+#function prepare_for_harakiri()
+#{
+#	local pid=$$
+#	trap "release_lock; exit" INT TERM EXIT
+#	( sleep $HARAKIRI_TIMEOUT && kill -9 $pid 2>/dev/null ) &
+#}
+
+function wait_on_lock()
+{
+	# wait until another operation is completed
+	local message=
+	local max_delay=10
+	local delay=0
+
+	if [ "$ignore_lock" ]; then
+		return
+	fi
+
+	while [ -e $LOCK_FILE -a $delay -lt $max_delay ]; do
+		if [ -z "$message" ]; then
+			message="Another operation is in progress.  Please wait "
+			echo -n "$message"
+		fi
+		echo -n .
+		sleep 1
+		((delay++))
+	done
+	echo
+}
+
+function release_lock()
+{
+	rm -f $LOCK_FILE
+}
+
+function acquire_lock()
+{
+	if [ "$ignore_lock" ]; then
+		return
+	fi
+
+	touch $LOCK_FILE
+}
+
+function build_environment()
+{
+	touch $error_log
+	touch $debug_log
+	touch $trap_log
+
+	chown $RUN_AS_USER:$RUN_AS_GROUP $error_log $debug_log $trap_log
+	chmod 0644 $error_log $debug_log $trap_log
+
+	test -d $diagnostics_pool || mkdir -p $diagnostics_pool
+	chown $RUN_AS_USER:$RUN_AS_GROUP $diagnostics_pool
+}
+
+function clear_local_socket()
+{
+	local local_socket_dir=`dirname $local_socket_prefix`
+	local local_socket_name=`basename $local_socket_prefix`
+	if [ -n "$local_socket_dir" -a -n "$local_socket_name" ]; then
+		find $local_socket_dir -type s -name "$local_socket_name*" -exec rm -f \{\} \;
+	fi
+}
+
+function clear_environment()
+{
+	rm -f $pid_file
+	if [ -n "$diagnostics_pool" ]; then
+		find $diagnostics_pool -type f -exec rm -f \{\} \;
+	fi
+	clear_local_socket
+}
+
+function check_if_alive()
+{
+	if ! exec 3<> /dev/tcp/127.0.0.1/$port_number; then
+		return 1
+	else
+		echo 'ALIVE?' 1>&3
+
+		read ret 0<&3
+
+		test "$ret" = YES || return 1
+	fi
+
+	return 0
+}
+
+function daemon_start()
+{
+	# wait_on_lock
+	# acquire_lock
+	build_environment
+	clear_environment
+	$PROGPATH -u $RUN_AS_USER -g $RUN_AS_GROUP $PROGOPTS
+	# release_lock
+}
+
+function daemon_stop()
+{
+	local count=
+	local max_count=30
+	# wait_on_lock
+	# acquire_lock
+	pid=`cat $pid_file 2>/dev/null`
+	test "$pid" && kill $pid 2>/dev/null
+	sleep 1
+	pkill -9 -f $PROGPATH
+	pkill -9 -f $PROGPATH_ORIG
+	sleep 1
+
+	count=0
+	while [ $count -lt $max_count ]; do
+		netstat -nat | awk '{print $4}' | grep :$port_number >/dev/null
+		test $? -ne 0 && break
+		sleep 1
+		((count++))
+	done
+
+	clear_environment
+	# release_lock
+}
+
+function daemon_stab()
+{
+	pid=`cat $pid_file 2>/dev/null`
+	pkill -9 -f $PROGPATH
+	pkill -9 -f $PROGPATH_ORIG
+	clear_environment
+}
+
+function daemon_getstatus()
+{
+	check_if_alive 2>/dev/null
+
+	if [ $? -eq 0 ]; then
+		log_success_msg "$PROGNAME is running"
+		return 0
+	else
+		log_failure_msg "$PROGNAME is not running"
+		return 1
+	fi
+}
+
+function daemon_diagnostics()
+{
+	$PROGPATH -d
+}
+
+
+trap "release_lock; exit" INT TERM EXIT
+
+#
+# cd to / before starting any daemon
+#
+cd /
+
+case "$1" in
+	start)
+		if [ -f "$pid_file" ]; then
+			log_daemon_msg "$PROGDESC already running"
+		else
+			log_daemon_msg "Starting $PROGDESC:"
+			if [ "$DO_RUN" = "yes" ]; then
+				wait_on_lock
+				acquire_lock
+				daemon_start
+				release_lock
+				log_progress_msg " $PROGNAME"
+			fi
+		fi
+		;;
+	start-force)
+		log_daemon_msg "Starting $PROGDESC:"
+		if [ "$DO_RUN" = "yes" ]; then
+			daemon_start
+			log_progress_msg " $PROGNAME"
+		fi
+		;;
+	stop)
+		log_daemon_msg "Stopping $PROGDESC:"
+		wait_on_lock
+		acquire_lock
+		daemon_stop
+		release_lock
+		log_progress_msg " $PROGNAME"
+		;;
+	stab)
+		daemon_stab
+		;;
+	restart)
+		log_daemon_msg "Restarting $PROGDESC:"
+		wait_on_lock
+		acquire_lock
+		daemon_stop
+		if [ "$DO_RUN" = "yes" ]; then
+			daemon_start
+		fi
+		release_lock
+		log_progress_msg " $PROGNAME"
+		;;
+	status)
+		status=0
+		daemon_getstatus || status=$?
+		exit $status
+		;;
+	diagnostics)
+		daemon_diagnostics
+		;;
+	*)
+		echo "Usage: /etc/init.d/$PROGNAME {start|start-force|stop|restart|status|diagnostics|stab}"
+		exit 1
+esac
+
+exit 0

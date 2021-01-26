@@ -1,0 +1,156 @@
+#!/bin/bash
+
+#
+#     N a g i o s   S N M P   T r a p   D a e m o n 
+#
+##############################################################################
+##############################################################################
+##############################################################################
+
+#
+#     nagiostrapd-monitor --- performs various diagnostics
+#
+##############################################################################
+##############################################################################
+
+
+
+export LC_ALL=C
+
+SERVICE=nagiostrapd
+SERVPATH=/usr/sbin/$SERVICE
+LIMITS=/etc/$SERVICE/$SERVICE.limits
+LOCK_FILE=/tmp/$SERVICE.operation_in_progress
+LOG_FILE=/var/log/$SERVICE.monitor
+
+MAXLINES=1000
+AUXFILE=/tmp/$SERVICE.traps.tmp
+
+DO_RUN=yes
+
+# read config
+source <($SERVPATH --dump-config)
+
+
+
+function service_start()
+{
+	service $SERVICE start --ignore-lock
+	return $?
+}
+
+function service_stop()
+{
+	service $SERVICE stop --ignore-lock
+	return $?
+}
+
+function service_restart()
+{
+	service $SERVICE restart --ignore-lock
+	return $?
+}
+
+function service_getstatus()
+{
+	service $SERVICE status --ignore-lock
+	return $?
+}
+
+function service_diagnostics()
+{
+	service $SERVICE diagnostics --ignore-lock
+	return $?
+}
+
+function logger()
+{
+	local msg="$1"
+	echo "`date`: $msg" >> $LOG_FILE
+}
+
+function truncate_log()
+{
+	#
+	# truncate log file (see man flock(1))
+	#
+
+	#MAXLINES=$((MAXLINES+2))
+
+	(
+		flock -x 128
+		tail -n $MAXLINES $trap_log > $AUXFILE
+		#sed '1d; $d' < $AUXFILE > $trap_log
+		cat < $AUXFILE > $trap_log
+	) 128< $trap_log
+
+	rm -f $AUXFILE
+}
+
+
+
+# read default file
+[ -r /etc/default/$SERVICE ] && . /etc/default/$SERVICE
+
+
+if [ "$DO_RUN" != "yes" ]; then
+	exit 0
+fi
+
+
+# ask service status
+service_getstatus
+
+if test $? -ne 0; then
+	# always do restart for clean up
+	echo logger "service not available: will be (re)started"
+	service_restart
+fi
+
+
+
+needs_restarting=$(service_diagnostics | while read line
+do
+	key=`echo $line | awk '{for (i = 1; i < NF; i++) print $i}' | tr '\n' ' ' | sed 's/ *$//'`
+	value=`echo $line | awk '{print $NF}'`
+	linemax=`grep "^$key" $LIMITS`
+	if [ -n "$linemax" ]
+	then
+		warning=`echo $linemax | awk '{print $(NF-1)}'`
+		critical=`echo $linemax | awk '{print $NF}'`
+
+		if [ `echo "$warning <= $critical" | bc` -eq 1 ]
+		then
+			if [ `echo "$value > $critical" | bc` -eq 1 ]
+			then
+				logger "CRITICAL: $key value ($value) is beyond critical ($critical): restarting service"
+				echo yes
+				break
+			elif [ `echo "$value > $warning" | bc` -eq 1 ]
+			then
+				logger "WARNING: $key value ($value) is beyond warning ($warning)"
+			fi
+		elif [ `echo "$warning >= $critical" | bc` -eq 1 ]
+		then
+			if [ `echo "$value < $critical" | bc` -eq 1 ]
+			then
+				logger "CRITICAL: $key value ($value) is below critical ($critical): restarting service"
+				echo yes
+				break
+			elif [ `echo "$value < $warning" | bc` -eq 1 ]
+			then
+				logger "WARNING: $key value ($value) is below warning ($warning)"
+			fi
+		fi
+	fi
+done)
+
+
+
+if [ "$needs_restarting" = 'yes' ]; then
+	logger "restarting service"
+	service_restart
+fi
+
+
+truncate_log

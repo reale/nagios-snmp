@@ -1,0 +1,6 @@
+#!/bin/bash
+
+
+rm -f `cat PROJECT`-*-nagios.tar.gz `cat PROJECT`-*-setperm.sh `cat PROJECT`-*.tar.gz
+
+make clean

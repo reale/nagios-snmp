@@ -1,0 +1,11 @@
+--- NAGIOS-ROOT-MIB.orig	2009-04-02 21:32:09.000000000 +0200
++++ NAGIOS-ROOT-MIB	2012-04-24 10:26:44.750271061 +0200
+@@ -54,7 +54,7 @@ HostStateID ::= TEXTUAL-CONVENTION
+   SYNTAX INTEGER {
+     up(0),
+     down(1),
+-    unreachable(3)
++    unreachable(2)
+     }
+         
+ HostStateType ::= TEXTUAL-CONVENTION
